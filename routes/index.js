@@ -10,7 +10,8 @@ exports.setup = function (app, program) {
       framerate: program.framerate,
       colorize: '' + program.colorize,
       sumarize: '' + program.sumarize,
-      time: '' + program.time
+      time: '' + program.time,
+      port: '' + program.port
     });
   });
 };

@@ -42,6 +42,7 @@
   var sumarize = true;
   var colorize = true;
   var time = true;
+  var port = 8081;
 
   function init(){
     $canvas = $("#mainCanvas");
@@ -53,6 +54,7 @@
     colorize         = $canvas.data("colorize");
     sumarize         = $canvas.data("sumarize");
     time             = $canvas.data("time");
+    port             = $canvas.data("port");
 
     if ( canvas.getContext ){
       setup();
@@ -449,89 +451,91 @@
     return -1;
   }
 
-  window.onload = init;
+  window.onload = function () {
+      init();
 
-  // Establish the websocket connection
-  var socket = io.connect('localhost', {port:8081});
-  socket.on('log', function (data) {
-    var robj = JSON.parse(data);
-    // console.log(robj);
+      // Establish the websocket connection
+      var socket = io.connect(window.location.host, { port: port });
+      socket.on('log', function (data) {
+          var robj = JSON.parse(data);
+          // console.log(robj);
 
-    if (typerequests[robj.result] === undefined) {
-      typerequests[robj.result] = 0;
-    }
+          if (typerequests[robj.result] === undefined) {
+              typerequests[robj.result] = 0;
+          }
 
-    typerequests[robj.result]++;
+          typerequests[robj.result]++;
 
-    // if not paused, then add it to buffer
-    if (intervalId) {
-      var m = new RemoteRequest();
-      m.x   = MARGIN_LEFT; // canvasW * 0.5;
-      m.vX  = speed;
-      m.req = robj;
-      requests.push(m);
+          // if not paused, then add it to buffer
+          if (intervalId) {
+              var m = new RemoteRequest();
+              m.x   = MARGIN_LEFT; // canvasW * 0.5;
+              m.vX  = speed;
+              m.req = robj;
+              requests.push(m);
 
-      if (robj.origin !== undefined) {
-        // Find pre generated origin, for inherit color
-        var originpos = findOriginByName(robj.origin);
+              if (robj.origin !== undefined) {
+                  // Find pre generated origin, for inherit color
+                  var originpos = findOriginByName(robj.origin);
 
-        if (originpos < 0) {
-          // New origin assignment
-          var origin = new Origin();
-          origin.path = robj.origin;
-          origin.color = {r: Math.floor( Math.random()*155 + 100 ), g: Math.floor( Math.random()*155 + 100 ), b: Math.floor( Math.random()*155 + 100 )};
-          originpos = origins.push(origin) - 1;
-          console.log('New origin: ' + robj.origin);
-        }
+                  if (originpos < 0) {
+                      // New origin assignment
+                      var origin = new Origin();
+                      origin.path = robj.origin;
+                      origin.color = {r: Math.floor( Math.random()*155 + 100 ), g: Math.floor( Math.random()*155 + 100 ), b: Math.floor( Math.random()*155 + 100 )};
+                      originpos = origins.push(origin) - 1;
+                      console.log('New origin: ' + robj.origin);
+                  }
 
-        m.color = origins[originpos].color;
-      } else {
-        // For no origin request, only one origin, then random color
-        m.color = {r: Math.floor( Math.random()*155 + 100 ), g: Math.floor( Math.random()*155 + 100 ), b: Math.floor( Math.random()*155 + 100 )};
-      }
+                  m.color = origins[originpos].color;
+              } else {
+                  // For no origin request, only one origin, then random color
+                  m.color = {r: Math.floor( Math.random()*155 + 100 ), g: Math.floor( Math.random()*155 + 100 ), b: Math.floor( Math.random()*155 + 100 )};
+              }
 
-      // Search a request slot
-      var srcslotpos = findSlotByIp(robj.ip);
+              // Search a request slot
+              var srcslotpos = findSlotByIp(robj.ip);
 
-      if (srcslotpos < 0) {
-        // New slot assignment
-        var sslot = new Slot();
-        sslot.ip = robj.ip;
-        sslot.count = 1;
-        sslot.y  = Math.floor( Math.random() * (canvasH - MARGIN_TOP - MARGIN_BOTTOM) + MARGIN_TOP ); // TODO: Find a correct slot vertical position
-        srcslotpos = srcslots.push(sslot) - 1;
-        console.log('New request sslot at: ' + sslot.y);
-      } else {
-        srcslots[srcslotpos].count++;
-        console.log('Recycled request slot at: ' + srcslots[srcslotpos].y);
-      }
+              if (srcslotpos < 0) {
+                  // New slot assignment
+                  var sslot = new Slot();
+                  sslot.ip = robj.ip;
+                  sslot.count = 1;
+                  sslot.y  = Math.floor( Math.random() * (canvasH - MARGIN_TOP - MARGIN_BOTTOM) + MARGIN_TOP ); // TODO: Find a correct slot vertical position
+                  srcslotpos = srcslots.push(sslot) - 1;
+                  console.log('New request sslot at: ' + sslot.y);
+              } else {
+                  srcslots[srcslotpos].count++;
+                  console.log('Recycled request slot at: ' + srcslots[srcslotpos].y);
+              }
 
-      // Search a resource slot
-      var dstslotpos = findSlotByTarget(robj.path);
+              // Search a resource slot
+              var dstslotpos = findSlotByTarget(robj.path);
 
-      if (dstslotpos < 0) {
-        // New slot assignment
-        var dslot = new Slot();
-        dslot.path = robj.path;
-        dslot.count = 1;
-        dslot.y  = Math.floor( Math.random() * (canvasH - MARGIN_TOP - MARGIN_BOTTOM) + MARGIN_TOP ); // TODO: Find a correct slot vertical position
-        dstslotpos = dstslots.push(dslot) - 1;
-        console.log('New resource dslot at: ' + dslot.y);
-      } else {
-        dstslots[dstslotpos].count++;
-        console.log('Recycled resource slot at: ' + dstslots[dstslotpos].y);
-      }
+              if (dstslotpos < 0) {
+                  // New slot assignment
+                  var dslot = new Slot();
+                  dslot.path = robj.path;
+                  dslot.count = 1;
+                  dslot.y  = Math.floor( Math.random() * (canvasH - MARGIN_TOP - MARGIN_BOTTOM) + MARGIN_TOP ); // TODO: Find a correct slot vertical position
+                  dstslotpos = dstslots.push(dslot) - 1;
+                  console.log('New resource dslot at: ' + dslot.y);
+              } else {
+                  dstslots[dstslotpos].count++;
+                  console.log('Recycled resource slot at: ' + dstslots[dstslotpos].y);
+              }
 
-      m.y = srcslots[srcslotpos].y;
+              m.y = srcslots[srcslotpos].y;
 
-      // When the origin and target slots are set, then the vertical speed can be calculated
-      m.vY = (dstslots[dstslotpos].y - srcslots[srcslotpos].y) / (canvasW - MARGIN_LEFT - MARGIN_RIGHT) * speed;
-      console.log('New request with vertical speed at: ' + m.vY);
+              // When the origin and target slots are set, then the vertical speed can be calculated
+              m.vY = (dstslots[dstslotpos].y - srcslots[srcslotpos].y) / (canvasW - MARGIN_LEFT - MARGIN_RIGHT) * speed;
+              console.log('New request with vertical speed at: ' + m.vY);
 
-    }
+          }
 
-    ++total;
-  });
+          ++total;
+      });
+  };
 
   // Resize window event
   $(window).resize(function() {
