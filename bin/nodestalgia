@@ -2,6 +2,7 @@
 
 var program = require('commander');
 var path = require('path');
+var carrier = require('carrier');
 
 program
 .version('0.1.2')
@@ -14,7 +15,13 @@ program
 .parse(process.argv);
 
 var filename = [];
-if (program.args.length > 0) {
+var useStdin = false;
+var spawn, tail;
+
+if (program.args.length === 1 && program.args[0] === '-') {
+  useStdin = true;
+  process.stdin.resume();
+} else if (program.args.length > 0) {
   for (var i = 0; i < program.args.length; i++) {
     var f = program.args[i];
     if (!path.existsSync(f)) {
@@ -37,14 +44,14 @@ var app = module.exports = express.createServer();
 
 // Configuration
 app.configure(function () {
-  app.set('views', __dirname + '/views');
+  app.set('views', __dirname + '/../views');
   app.set('view engine', 'jade');
   app.set('view options', { layout: false });
   app.use(express.bodyParser());
   app.use(express.methodOverride());
-  app.use(require('stylus').middleware({ src: __dirname + '/public' }));
+  app.use(require('stylus').middleware({ src: __dirname + '/../public' }));
   app.use(app.router);
-  app.use(express['static'](__dirname + '/public'));
+  app.use(express['static'](__dirname + '/../public'));
 });
 
 app.configure('development', function () {
@@ -68,8 +75,10 @@ app.listen(8081);
 var io = socketio.listen(app);
 console.log("Express server listening on port %d in %s mode", app.address().port, app.settings.env);
 
-var spawn = require('child_process').spawn;
-var tail = spawn('tail', ['-f'].concat(filename));
+if (!useStdin) {
+  spawn = require('child_process').spawn;
+  tail = spawn('tail', ['-f'].concat(filename));
+}
 
 // 127.0.0.1 - - [07/Mar/2012:23:21:47 +0100] "GET / HTTP/1.0" 200 454 "-" "ApacheBench/2.3"
 var regexp = /([0-9]+\.[0-9]+\.[0-9]+\.[0-9]+).+\[(.+)\] "(\w+) ([^ ]+) .*" (\w+) (\w+)/;
@@ -97,7 +106,7 @@ function reverse_addr(addr) {
   return e;
 }
 
-tail.stdout.on('data', function (data) {
+function parseData(data) {
   var str = data.toString('utf8')
     , match = regexp.exec(str)
     , robj
@@ -137,4 +146,10 @@ tail.stdout.on('data', function (data) {
     }
 
   }
-});
+}
+
+if (!useStdin) {
+  tail.stdout.on('data', parseData);
+} else {
+  carrier.carry(process.stdin, parseData);
+}
