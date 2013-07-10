@@ -3,6 +3,7 @@
 var program = require('commander');
 var path = require('path');
 var carrier = require('carrier');
+var nconf = require('nconf');
 
 program
 .version('0.1.2')
@@ -34,6 +35,9 @@ if (program.args.length === 1 && program.args[0] === '-') {
 } else {
   filename.push("/var/log/apache2/access.log");
 }
+
+nconf.file({ file: 'config.json' });
+program.config = nconf.get();
 
 var express   = require('express'),
 sys       = require('util'),

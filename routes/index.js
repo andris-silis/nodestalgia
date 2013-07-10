@@ -11,7 +11,8 @@ exports.setup = function (app, program) {
       colorize: '' + program.colorize,
       sumarize: '' + program.sumarize,
       time: '' + program.time,
-      port: '' + program.port
+      port: '' + program.port,
+      config: program.config
     });
   });
 };
