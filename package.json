@@ -14,6 +14,7 @@
     , "jade": ">= 0.0.1"
     , "socket.io": ">= 0.8.x"
     , "commander": ">= 0.5.x"
+    , "carrier": ">= 0.1.10"
   },
   "devDependencies": {},
   "optionalDependencies": {},

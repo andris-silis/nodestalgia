@@ -2,6 +2,12 @@
 
 var program = require('commander');
 var path = require('path');
+var carrier = require('carrier');
+
+var filename = [],
+  useStdin = false,
+  spawn,
+  tail;
 
 program
 .version('0.1.2')
@@ -13,8 +19,9 @@ program
 .option('-S, --no-sumarize', 'Do not show the sumarize counters')
 .parse(process.argv);
 
-var filename = [];
-if (program.args.length > 0) {
+if (program.args.length === 1 && program.args[0] === '-') {
+  useStdin = true;
+} else if (program.args.length > 0) {
   for (var i = 0; i < program.args.length; i++) {
     var f = program.args[i];
     if (!path.existsSync(f)) {
@@ -34,17 +41,18 @@ events    = require('events'),
 socketio  = require('socket.io');
 
 var app = module.exports = express.createServer();
+var rootpath = __dirname + '/..';
 
 // Configuration
 app.configure(function () {
-  app.set('views', __dirname + '/views');
+  app.set('views', rootpath + '/views');
   app.set('view engine', 'jade');
   app.set('view options', { layout: false });
   app.use(express.bodyParser());
   app.use(express.methodOverride());
-  app.use(require('stylus').middleware({ src: __dirname + '/public' }));
+  app.use(require('stylus').middleware({ src: rootpath + '/public' }));
   app.use(app.router);
-  app.use(express['static'](__dirname + '/public'));
+  app.use(express['static'](rootpath + '/public'));
 });
 
 app.configure('development', function () {
@@ -67,9 +75,6 @@ app.configure('production', function () {
 app.listen(8081);
 var io = socketio.listen(app);
 console.log("Express server listening on port %d in %s mode", app.address().port, app.settings.env);
-
-var spawn = require('child_process').spawn;
-var tail = spawn('tail', ['-f'].concat(filename));
 
 // 127.0.0.1 - - [07/Mar/2012:23:21:47 +0100] "GET / HTTP/1.0" 200 454 "-" "ApacheBench/2.3"
 var regexp = /([0-9]+\.[0-9]+\.[0-9]+\.[0-9]+).+\[(.+)\] "(\w+) ([^ ]+) .*" (\w+) (\w+)/;
@@ -97,8 +102,8 @@ function reverse_addr(addr) {
   return e;
 }
 
-tail.stdout.on('data', function (data) {
-  var str = data.toString('utf8')
+function parseLine(line) {
+  var str = line.toString('utf8')
     , match = regexp.exec(str)
     , robj
     , matchdns;
@@ -135,6 +140,14 @@ tail.stdout.on('data', function (data) {
         io.sockets.emit('log', JSON.stringify(robj));
       });
     }
-
   }
-});
+}
+
+if (useStdin) {
+  process.stdin.resume();
+  carrier.carry(process.stdin, parseLine);
+} else {
+  spawn = require('child_process').spawn;
+  tail = spawn('tail', ['-f'].concat(filename));
+  tail.stdout.on('data', parseLine);
+}
